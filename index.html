@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>God View · the live Earth, by Krishil</title>
+<meta name="description" content="A live 3D Earth: today's satellite view, earthquakes, flights, ships and public webcams. Built by Krishil.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;800&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --bg:#05060a; --panel:rgba(14,16,22,.82); --line:#22252e; --ink:#eceef3; --mut:#8a90a0; --dim:#5d6372;
+    --quake:#ff6b6b; --flight:#ffd400; --ship:#5eead4; --cam:#8b9cff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Geist,system-ui,sans-serif;overflow:hidden}
+  #globe{position:fixed;inset:0}
+  .panel{position:fixed;z-index:10;top:16px;left:16px;width:320px;max-height:calc(100vh - 32px);overflow:auto;background:var(--panel);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:18px;padding:18px}
+  .brand{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .brand h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-.5px}
+  .live{font:500 11px/1 "Geist Mono",monospace;letter-spacing:2px;color:var(--quake);display:inline-flex;align-items:center;gap:6px}
+  .live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--quake);animation:pulse 1.6s infinite}
+  @keyframes pulse{50%{opacity:.25}}
+  .sub{color:var(--mut);margin:6px 0 14px}
+  form{display:flex;gap:8px;margin-bottom:14px}
+  input[type=search]{flex:1;min-width:0;background:#0b0d12;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px 12px;font:inherit}
+  button{font:inherit;cursor:pointer}
+  .btn{background:var(--ink);color:#0a0b0e;border:0;border-radius:10px;padding:10px 14px;font-weight:600;min-height:44px}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);width:100%}
+  input:focus-visible,button:focus-visible,label:focus-within{outline:2px solid var(--cam);outline-offset:2px}
+  .layers{display:grid;gap:6px;margin:0 0 12px;padding:0;border:0}
+  .layers legend{font:500 11px/1 "Geist Mono",monospace;letter-spacing:2px;color:var(--dim);margin-bottom:8px}
+  .layer{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;cursor:pointer;min-height:44px}
+  .layer input{position:absolute;opacity:0;pointer-events:none}
+  .dot{width:10px;height:10px;border-radius:50%;flex:none}
+  .layer .name{flex:1}
+  .count{font:500 12px/1 "Geist Mono",monospace;color:var(--mut)}
+  .sw{width:34px;height:20px;border-radius:20px;background:#22252e;position:relative;flex:none;transition:background .2s}
+  .sw::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#8a90a0;transition:transform .2s,background .2s}
+  .layer input:checked ~ .sw{background:#2e3443}
+  .layer input:checked ~ .sw::after{transform:translateX(14px);background:var(--ink)}
+  #status{color:var(--mut);font-size:13px;margin:12px 0 0;min-height:20px}
+  .credit{color:var(--dim);font-size:11px;margin-top:12px;line-height:1.5}
+  .credit a{color:var(--mut)}
+  .card{position:fixed;z-index:11;right:16px;bottom:16px;width:360px;max-width:calc(100vw - 32px);background:var(--panel);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:18px;padding:16px;display:none}
+  .card.open{display:block}
+  .card h2{margin:0 0 4px;font-size:17px;font-weight:600;padding-right:40px}
+  .card .meta{color:var(--mut);font:12px/1.5 "Geist Mono",monospace}
+  .card iframe,.card img{width:100%;aspect-ratio:16/9;border:0;border-radius:12px;margin-top:12px;background:#000;display:block;object-fit:cover}
+  .x{position:absolute;top:10px;right:10px;width:44px;height:44px;border:0;background:transparent;color:var(--mut);border-radius:10px}
+  .x:hover{color:var(--ink)}
+  .sig{position:fixed;z-index:9;right:20px;top:18px;font:500 11px/1 "Geist Mono",monospace;letter-spacing:2px;color:var(--dim)}
+  .sig a{color:var(--mut);text-decoration:none}
+  .cam{width:24px;height:24px;border-radius:50%;background:var(--cam);border:2px solid #0a0b0e;box-shadow:0 0 0 4px rgba(139,156,255,.25);cursor:pointer;pointer-events:auto;padding:0}
+  .toggle{display:none}
+  @media (max-width:720px){
+    .panel{top:auto;bottom:0;left:0;right:0;width:auto;border-radius:18px 18px 0 0;max-height:62vh;padding:14px 16px 20px}
+    .panel.min .hide-min{display:none}
+    .toggle{display:inline-flex;background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:6px 10px;min-height:36px}
+    .card{bottom:auto;top:12px;right:12px;left:12px;width:auto}
+    .sig{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="globe" aria-label="Interactive 3D globe" role="img"></div>
+
+<aside class="panel" id="panel">
+  <div class="brand">
+    <h1>God View</h1>
+    <span class="live">LIVE</span>
+    <button class="toggle" id="min" aria-expanded="true" aria-controls="panel">Hide</button>
+  </div>
+  <div class="hide-min">
+    <p class="sub">The live Earth in one screen: today's satellite view, earthquakes, flights, ships and public webcams.</p>
+    <form id="search">
+      <label for="q" style="position:absolute;left:-9999px">Fly to a city</label>
+      <input id="q" type="search" placeholder="Fly to a city…" autocomplete="off">
+      <button class="btn" type="submit">Go</button>
+    </form>
+    <fieldset class="layers">
+      <legend>LAYERS</legend>
+      <label class="layer"><input type="checkbox" id="l-sat"><span class="dot" style="background:linear-gradient(135deg,#2b6cb0,#8fd3a8)"></span><span class="name">Today's satellite view</span><span class="sw"></span></label>
+      <label class="layer"><input type="checkbox" id="l-quake" checked><span class="dot" style="background:var(--quake)"></span><span class="name">Earthquakes</span><span class="count" id="c-quake">–</span><span class="sw"></span></label>
+      <label class="layer"><input type="checkbox" id="l-flight" checked><span class="dot" style="background:var(--flight)"></span><span class="name">Flights</span><span class="count" id="c-flight">–</span><span class="sw"></span></label>
+      <label class="layer"><input type="checkbox" id="l-ship" checked><span class="dot" style="background:var(--ship)"></span><span class="name">Ships</span><span class="count" id="c-ship">–</span><span class="sw"></span></label>
+      <label class="layer"><input type="checkbox" id="l-cam" checked><span class="dot" style="background:var(--cam)"></span><span class="name">Webcams</span><span class="count" id="c-cam">–</span><span class="sw"></span></label>
+    </fieldset>
+    <button class="btn ghost" id="here" type="button">Load flights, ships &amp; cams here</button>
+    <p id="status" role="status" aria-live="polite">Starting the globe…</p>
+    <p class="credit">Data: <a href="https://earthquake.usgs.gov/" target="_blank" rel="noopener">USGS</a> ·
+      <a href="https://www.earthdata.nasa.gov/gibs" target="_blank" rel="noopener">NASA GIBS</a> ·
+      <a href="https://adsb.lol/" target="_blank" rel="noopener">adsb.lol</a> ·
+      <a href="https://aisstream.io/" target="_blank" rel="noopener">AISStream</a> ·
+      <a href="https://www.windy.com/webcams" target="_blank" rel="noopener">Windy Webcams</a> ·
+      <a href="https://nominatim.openstreetmap.org/" target="_blank" rel="noopener">OpenStreetMap</a>.
+      For learning and fun; not for navigation.</p>
+  </div>
+</aside>
+
+<div class="sig">BUILT BY <a href="https://www.ovrix.in" target="_blank" rel="noopener">KRISHIL</a></div>
+
+<section class="card" id="card" aria-live="polite">
+  <button class="x" id="close" aria-label="Close details">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+  <div id="card-body"></div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/globe.gl@2.46.2/dist/globe.gl.min.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const status = (t) => { $('status').textContent = t; };
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  const IMG = 'https://cdn.jsdelivr.net/npm/three-globe@2.45.6/example/img/';
+  const BLUE_MARBLE = IMG + 'earth-blue-marble.jpg';
+
+  if (!window.Globe) { status('The 3D engine did not load. Check your connection and refresh.'); return; }
+
+  const state = { quakes: [], flights: [], ships: [], cams: [], center: { lat: 21.5, lng: 70.5 } };
+  const on = (id) => $(id).checked;
+
+  const globe = Globe()($('globe'))
+    .globeImageUrl(BLUE_MARBLE)
+    .bumpImageUrl(IMG + 'earth-topology.png')
+    .backgroundImageUrl(IMG + 'night-sky.png')
+    .atmosphereColor('#8b9cff')
+    .atmosphereAltitude(0.18)
+    .pointRadius('r').pointAltitude('alt').pointColor('color').pointLabel('label')
+    .pointsTransitionDuration(0)
+    .ringColor(() => (t) => `rgba(255,107,107,${1 - t})`)
+    .ringMaxRadius('maxR').ringPropagationSpeed(2).ringRepeatPeriod(1400)
+    .htmlElement((d) => {
+      const b = document.createElement('button');
+      b.className = 'cam';
+      b.setAttribute('aria-label', 'Webcam: ' + d.title);
+      b.onclick = () => openCam(d);
+      return b;
+    })
+    .onPointClick((d) => openPoint(d));
+
+  globe.controls().autoRotate = true;
+  globe.controls().autoRotateSpeed = 0.35;
+  globe.pointOfView({ lat: 21.5, lng: 70.5, altitude: 2.2 }, 0);
+  ['pointerdown', 'wheel', 'touchstart'].forEach((ev) => $('globe').addEventListener(ev, () => { globe.controls().autoRotate = false; }, { passive: true }));
+  addEventListener('resize', () => globe.width(innerWidth).height(innerHeight));
+
+  // ---------- drawing ----------
+  function draw() {
+    const pts = [];
+    if (on('l-quake')) state.quakes.forEach((q) => pts.push(q));
+    if (on('l-flight')) state.flights.forEach((f) => pts.push(f));
+    if (on('l-ship')) state.ships.forEach((s) => pts.push(s));
+    globe.pointsData(pts);
+    globe.ringsData(on('l-quake') ? state.quakes.filter((q) => q.mag >= 4.5) : []);
+    globe.htmlElementsData(on('l-cam') ? state.cams : []);
+    $('c-quake').textContent = state.quakes.length || '–';
+    $('c-flight').textContent = state.flights.length || '–';
+    $('c-ship').textContent = state.ships.length || '–';
+    $('c-cam').textContent = state.cams.length || '–';
+  }
+
+  // ---------- earthquakes (USGS, past 24 h, M2.5+) ----------
+  async function loadQuakes() {
+    try {
+      const r = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson');
+      const d = await r.json();
+      state.quakes = d.features.map((f) => {
+        const [lng, lat, depth] = f.geometry.coordinates;
+        const mag = f.properties.mag || 0;
+        return {
+          kind: 'quake', lat, lng, mag, depth, place: f.properties.place, time: f.properties.time, url: f.properties.url,
+          r: 0.18 + mag * 0.09, alt: 0.01 + mag * 0.012, color: '#ff6b6b', maxR: 1.5 + mag,
+          label: `M${mag.toFixed(1)} · ${esc(f.properties.place)}`,
+        };
+      });
+      draw();
+    } catch { status('Earthquake feed did not answer. Retrying in 5 minutes.'); }
+  }
+
+  // ---------- flights / ships / webcams around a point ----------
+  async function getJSON(url) {
+    const r = await fetch(url);
+    const d = await r.json().catch(() => ({}));
+    return { ok: r.ok, d };
+  }
+  async function loadFlights(c) {
+    const { ok, d } = await getJSON(`/api/flights?lat=${c.lat}&lon=${c.lng}&nm=250`);
+    state.flights = (d.flights || []).map((f) => ({
+      ...f, kind: 'flight', r: 0.11, color: '#ffd400', alt: 0.004 + Math.min(f.alt, 45000) / 45000 * 0.03,
+      label: `${esc(f.call)}${f.type ? ' · ' + esc(f.type) : ''} · ${Math.round(f.alt).toLocaleString()} ft`,
+    }));
+    return ok ? state.flights.length + ' flights' : (d.error || 'flights unavailable');
+  }
+  async function loadShips(c) {
+    const { ok, d } = await getJSON(`/api/ships?lat=${c.lat}&lon=${c.lng}`);
+    state.ships = (d.ships || []).map((s) => ({
+      ...s, kind: 'ship', r: 0.13, color: '#5eead4', alt: 0.002, label: esc(s.name),
+    }));
+    return ok ? state.ships.length + ' ships' : (d.error || 'ships unavailable');
+  }
+  async function loadCams(c) {
+    const { ok, d } = await getJSON(`/api/webcams?lat=${c.lat}&lon=${c.lng}`);
+    state.cams = (d.webcams || []).map((w) => ({ ...w, alt: 0.01 }));
+    return ok ? state.cams.length + ' webcams' : (d.error || 'webcams unavailable');
+  }
+  async function loadHere() {
+    const pov = globe.pointOfView();
+    const c = { lat: +pov.lat.toFixed(3), lng: +(((pov.lng + 540) % 360) - 180).toFixed(3) };
+    state.center = c;
+    status('Looking around ' + c.lat + ', ' + c.lng + '…');
+    const jobs = [];
+    if (on('l-flight')) jobs.push(loadFlights(c));
+    if (on('l-ship')) jobs.push(loadShips(c));
+    if (on('l-cam')) jobs.push(loadCams(c));
+    const out = await Promise.allSettled(jobs);
+    draw();
+    status(out.map((o) => (o.status === 'fulfilled' ? o.value : 'one feed failed')).join(' · ') || 'Turn on a layer first.');
+  }
+
+  // ---------- details card ----------
+  const card = $('card'), body = $('card-body');
+  function openCard(html) { body.innerHTML = html; card.classList.add('open'); }
+  $('close').onclick = () => { card.classList.remove('open'); body.innerHTML = ''; };
+  function openPoint(d) {
+    if (d.kind === 'quake') {
+      openCard(`<h2>M${d.mag.toFixed(1)} earthquake</h2><p class="meta">${esc(d.place)}<br>${new Date(d.time).toLocaleString()} · depth ${Math.round(d.depth)} km</p>
+        <p class="meta"><a href="${esc(d.url)}" target="_blank" rel="noopener" style="color:var(--ink)">USGS details</a></p>`);
+    } else if (d.kind === 'flight') {
+      openCard(`<h2>${esc(d.call)}</h2><p class="meta">${d.type ? esc(d.type) + ' · ' : ''}${Math.round(d.alt).toLocaleString()} ft${d.speed != null ? ' · ' + Math.round(d.speed) + ' kt' : ''}${d.heading != null ? ' · heading ' + Math.round(d.heading) + '°' : ''}<br>${d.lat.toFixed(3)}, ${d.lng.toFixed(3)}</p>`);
+    } else if (d.kind === 'ship') {
+      openCard(`<h2>${esc(d.name)}</h2><p class="meta">MMSI ${esc(d.id)}${d.speed != null ? ' · ' + d.speed + ' kn' : ''}<br>${d.lat.toFixed(3)}, ${d.lng.toFixed(3)}</p>`);
+    }
+  }
+  function openCam(d) {
+    const media = d.player && /^https:\/\//.test(d.player)
+      ? `<iframe src="${esc(d.player)}" title="${esc(d.title)}" allow="autoplay; fullscreen" loading="lazy"></iframe>`
+      : (d.image ? `<img src="${esc(d.image)}" alt="${esc(d.title)}">` : '');
+    openCard(`<h2>${esc(d.title)}</h2><p class="meta">${esc([d.city, d.country].filter(Boolean).join(', '))}</p>${media}`);
+    globe.pointOfView({ lat: d.lat, lng: d.lng, altitude: 0.35 }, 1200);
+  }
+
+  // ---------- today's satellite view (NASA GIBS, yesterday's full-day mosaic) ----------
+  function satUrl() {
+    const day = new Date(Date.now() - 36 * 3600e3).toISOString().slice(0, 10);
+    return 'https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0'
+      + '&LAYERS=MODIS_Terra_CorrectedReflectance_TrueColor&CRS=EPSG:4326&BBOX=-90,-180,90,180'
+      + '&WIDTH=4096&HEIGHT=2048&FORMAT=image/jpeg&TIME=' + day;
+  }
+  $('l-sat').onchange = () => {
+    if (!on('l-sat')) { globe.globeImageUrl(BLUE_MARBLE); status('Back to the Blue Marble.'); return; }
+    status('Loading the newest NASA satellite image of the whole Earth…');
+    const url = satUrl(), img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => { globe.globeImageUrl(url); status('Showing NASA Terra satellite imagery from ' + url.slice(-10) + '.'); };
+    img.onerror = () => { $('l-sat').checked = false; status('NASA imagery did not load. Try again later.'); };
+    img.src = url;
+  };
+
+  ['l-quake', 'l-flight', 'l-ship', 'l-cam'].forEach((id) => { $(id).onchange = draw; });
+  $('here').onclick = loadHere;
+
+  // ---------- city search ----------
+  $('search').onsubmit = async (e) => {
+    e.preventDefault();
+    const q = $('q').value.trim();
+    if (!q) return;
+    status('Finding ' + q + '…');
+    try {
+      const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q));
+      const d = await r.json();
+      if (!d.length) return status('No place found for "' + q + '".');
+      globe.controls().autoRotate = false;
+      globe.pointOfView({ lat: +d[0].lat, lng: +d[0].lon, altitude: 0.6 }, 1600);
+      setTimeout(loadHere, 1700);
+    } catch { status('Search failed. Drag the globe there instead.'); }
+  };
+
+  // mobile panel
+  $('min').onclick = () => {
+    const min = $('panel').classList.toggle('min');
+    $('min').textContent = min ? 'Show' : 'Hide';
+    $('min').setAttribute('aria-expanded', String(!min));
+  };
+
+  // refresh loops
+  loadQuakes();
+  setInterval(loadQuakes, 5 * 60e3);
+  setInterval(() => { if (on('l-flight') && state.flights.length) loadFlights(state.center).then(draw).catch(() => {}); }, 30e3);
+  status('Drag to spin, scroll to zoom. Search a city or press "Load … here".');
+})();
+</script>
+</body>
+</html>
