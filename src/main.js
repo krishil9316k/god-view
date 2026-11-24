@@ -453,7 +453,7 @@ function openDetails(o) {
   if (o.kind === 'flight') {
     openCard(`<p class="kicker">Aircraft · live</p><h2>${esc(o.call)}</h2>
       <div class="photo" id="photo"></div>
-      <dl>${row('Type', esc(TYPES[o.type] || o.type || 'Unknown'))}${row('Registration', esc(o.reg))}
+      <dl>${row('Type', o.type ? esc(TYPES[o.type] || o.type) : null)}${row('Registration', esc(o.reg))}
       ${row('Altitude', o.ground ? 'On the ground' : Math.round(o.alt).toLocaleString() + ' ft')}
       ${row('Speed', o.speed != null ? Math.round(o.speed) + ' kt' : null)}${row('Heading', o.heading != null ? Math.round(o.heading) + '°' : null)}
       ${row('Climb', o.vrate ? (o.vrate > 0 ? '+' : '') + Math.round(o.vrate) + ' ft/min' : null)}</dl>
