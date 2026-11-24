@@ -1,5 +1,7 @@
 # God View
 
+**Live:** https://god-view-bay.vercel.app
+
 A live 3D Earth in one screen, built by [Krishil](https://www.ovrix.in).
 
 - **Today's satellite view:** NASA GIBS (MODIS Terra true colour), full planet
