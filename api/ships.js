@@ -28,17 +28,20 @@ export default async function handler(req, res) {
   const box = [[Math.max(-90, lat - 4), Math.max(-180, lon - 6)], [Math.min(90, lat + 4), Math.min(180, lon + 6)]];
   const ships = new Map();
   const kinds = new Map();
+  const dbg = { opened: false, messages: 0, errors: [], close: null };
   await new Promise((resolve) => {
     let ws;
     const done = () => { try { ws && ws.close(); } catch {} resolve(); };
     const timer = setTimeout(done, 6000);
     try {
       ws = new WebSocket('wss://stream.aisstream.io/v0/stream');
-      ws.onopen = () => ws.send(JSON.stringify({ APIKey: key, BoundingBoxes: [box], FilterMessageTypes: ['PositionReport', 'ShipStaticData', 'StandardClassBPositionReport'] }));
+      ws.onopen = () => { dbg.opened = true; ws.send(JSON.stringify({ APIKey: key, BoundingBoxes: [box], FilterMessageTypes: ['PositionReport', 'ShipStaticData', 'StandardClassBPositionReport'] })); };
       ws.onmessage = async (ev) => {
         try {
           const text = typeof ev.data === 'string' ? ev.data : await new Response(ev.data).text();
           const m = JSON.parse(text);
+          dbg.messages++;
+          if (m.error) dbg.errors.push(String(m.error).slice(0, 200));
           const meta = m.MetaData || {};
           const msg = m.Message || {};
           if (msg.ShipStaticData) {
@@ -62,15 +65,17 @@ export default async function handler(req, res) {
             ...describe(kinds.get(meta.MMSI)),
           });
           if (ships.size >= 300) { clearTimeout(timer); done(); }
-        } catch {}
+        } catch (e) { if (dbg.errors.length < 3) dbg.errors.push(String(e).slice(0, 200)); }
       };
-      ws.onerror = () => { clearTimeout(timer); done(); };
-      ws.onclose = () => { clearTimeout(timer); resolve(); };
+      ws.onerror = (e) => { dbg.errors.push('socket error: ' + String(e && (e.message || e.type)).slice(0, 200)); clearTimeout(timer); done(); };
+      ws.onclose = (e) => { dbg.close = [e.code, String(e.reason || '').slice(0, 200)]; clearTimeout(timer); resolve(); };
     } catch {
       clearTimeout(timer);
       done();
     }
   });
   res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
-  return res.status(200).json({ ships: [...ships.values()] });
+  const out = { ships: [...ships.values()] };
+  if (req.query.debug === '1') { out.debug = dbg; res.setHeader('Cache-Control', 'no-store'); }
+  return res.status(200).json(out);
 }
