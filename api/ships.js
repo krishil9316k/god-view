@@ -31,8 +31,14 @@ export default async function handler(req, res) {
   const dbg = { opened: false, messages: 0, errors: [], close: null };
   await new Promise((resolve) => {
     let ws;
-    const done = () => { try { ws && ws.close(); } catch {} resolve(); };
-    const timer = setTimeout(done, 6000);
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      try { ws && ws.close(); } catch {}
+      resolve();
+    };
+    const timer = setTimeout(() => { if (!dbg.opened) dbg.errors.push('AISStream did not accept the connection in time'); done(); }, 8000);
     try {
       ws = new WebSocket('wss://stream.aisstream.io/v0/stream');
       ws.onopen = () => { dbg.opened = true; ws.send(JSON.stringify({ APIKey: key, BoundingBoxes: [box], FilterMessageTypes: ['PositionReport', 'ShipStaticData', 'StandardClassBPositionReport'] })); };
@@ -67,15 +73,17 @@ export default async function handler(req, res) {
           if (ships.size >= 300) { clearTimeout(timer); done(); }
         } catch (e) { if (dbg.errors.length < 3) dbg.errors.push(String(e).slice(0, 200)); }
       };
-      ws.onerror = (e) => { dbg.errors.push('socket error: ' + String(e && (e.message || e.type)).slice(0, 200)); clearTimeout(timer); done(); };
-      ws.onclose = (e) => { dbg.close = [e.code, String(e.reason || '').slice(0, 200)]; clearTimeout(timer); resolve(); };
+      ws.onerror = (e) => { if (!settled && dbg.errors.length < 5) dbg.errors.push('socket error: ' + String(e && (e.message || e.type)).slice(0, 200)); clearTimeout(timer); done(); };
+      ws.onclose = (e) => { if (!dbg.close) dbg.close = [e.code, String(e.reason || '').slice(0, 200)]; clearTimeout(timer); done(); };
     } catch {
       clearTimeout(timer);
       done();
     }
   });
-  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
   const out = { ships: [...ships.values()] };
+  // Don't cache an empty answer: the free feed is in beta and sometimes stalls for a while.
+  res.setHeader('Cache-Control', out.ships.length ? 's-maxage=60, stale-while-revalidate=120' : 'no-store');
+  if (!dbg.opened) out.error = 'The free ship feed (AISStream, beta) is not answering right now. Try again in a few minutes.';
   if (req.query.debug === '1') { out.debug = dbg; res.setHeader('Cache-Control', 'no-store'); }
   return res.status(200).json(out);
 }
