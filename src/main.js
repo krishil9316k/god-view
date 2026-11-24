@@ -256,7 +256,7 @@ async function loadShips(c) {
   state.ships = merge(state.ships.filter((s) => near(s, c)), d.ships || [], now, (s) => ({ kind: 'ship', kind2: s.kind || 'cargo', altR: 0.00001, label: s.name }));
   sortShips();
   $('c-ship').textContent = state.ships.length;
-  return `${state.ships.length} ships`;
+  return state.ships.length || !d.error ? `${state.ships.length} ships` : d.error;
 }
 async function loadCams(c) {
   const { ok, d } = await getJSON(`/api/webcams?lat=${c.lat}&lon=${c.lng}`);
