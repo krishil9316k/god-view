@@ -25,11 +25,16 @@ export default async function handler(req, res) {
           id: a.hex,
           call: (a.flight || '').trim() || a.r || a.hex,
           type: a.t || null,
+          reg: a.r || null,
+          cat: a.category || null,
           lat: a.lat,
           lng: a.lon,
           alt: typeof a.alt_baro === 'number' ? a.alt_baro : 0,
+          ground: a.alt_baro === 'ground',
           speed: a.gs ?? null,
-          heading: a.track ?? null,
+          heading: a.track ?? a.true_heading ?? a.mag_heading ?? null,
+          vrate: a.baro_rate ?? a.geom_rate ?? null,
+          age: Number.isFinite(a.seen_pos) ? a.seen_pos : (Number.isFinite(a.seen) ? a.seen : 0),
         }));
       res.setHeader('Cache-Control', 's-maxage=20, stale-while-revalidate=40');
       return res.status(200).json({ flights });

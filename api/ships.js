@@ -5,6 +5,18 @@ function num(v, min, max, dflt) {
   return Number.isFinite(n) && n >= min && n <= max ? n : dflt;
 }
 
+// AIS ship type code -> model family used by the 3D view.
+function describe(k) {
+  if (!k) return { kind: 'cargo' };
+  const t = Number(k.type) || 0;
+  let kind = 'cargo';
+  if (t >= 60 && t < 70) kind = 'passenger';
+  else if (t >= 80 && t < 90) kind = 'tanker';
+  else if (t >= 70 && t < 80) kind = 'cargo';
+  else if (t === 30 || t === 31 || t === 32 || t === 36 || t === 37 || (t >= 50 && t < 60)) kind = 'small';
+  return { kind, len: k.len || null, dest: k.dest || null, typeCode: t || null };
+}
+
 export const config = { maxDuration: 15 };
 
 export default async function handler(req, res) {
@@ -15,27 +27,39 @@ export default async function handler(req, res) {
   const lon = num(req.query.lon, -180, 180, 70.5);
   const box = [[Math.max(-90, lat - 4), Math.max(-180, lon - 6)], [Math.min(90, lat + 4), Math.min(180, lon + 6)]];
   const ships = new Map();
+  const kinds = new Map();
   await new Promise((resolve) => {
     let ws;
     const done = () => { try { ws && ws.close(); } catch {} resolve(); };
     const timer = setTimeout(done, 6000);
     try {
       ws = new WebSocket('wss://stream.aisstream.io/v0/stream');
-      ws.onopen = () => ws.send(JSON.stringify({ APIKey: key, BoundingBoxes: [box], FilterMessageTypes: ['PositionReport'] }));
+      ws.onopen = () => ws.send(JSON.stringify({ APIKey: key, BoundingBoxes: [box], FilterMessageTypes: ['PositionReport', 'ShipStaticData', 'StandardClassBPositionReport'] }));
       ws.onmessage = async (ev) => {
         try {
           const text = typeof ev.data === 'string' ? ev.data : await new Response(ev.data).text();
           const m = JSON.parse(text);
           const meta = m.MetaData || {};
-          const pr = (m.Message || {}).PositionReport || {};
+          const msg = m.Message || {};
+          if (msg.ShipStaticData) {
+            const st = msg.ShipStaticData;
+            const dim = st.Dimension || {};
+            kinds.set(meta.MMSI, { type: st.Type, len: (dim.A || 0) + (dim.B || 0), dest: String(st.Destination || '').trim() });
+            const s = ships.get(meta.MMSI);
+            if (s) Object.assign(s, describe(kinds.get(meta.MMSI)));
+            return;
+          }
+          const pr = msg.PositionReport || msg.StandardClassBPositionReport || {};
           if (!Number.isFinite(meta.latitude) || !Number.isFinite(meta.longitude)) return;
+          const hdg = Number.isFinite(pr.TrueHeading) && pr.TrueHeading < 360 ? pr.TrueHeading : (Number.isFinite(pr.Cog) && pr.Cog < 360 ? pr.Cog : null);
           ships.set(meta.MMSI, {
             id: meta.MMSI,
             name: String(meta.ShipName || '').trim() || `MMSI ${meta.MMSI}`,
             lat: meta.latitude,
             lng: meta.longitude,
-            speed: pr.Sog ?? null,
-            heading: pr.TrueHeading ?? null,
+            speed: Number.isFinite(pr.Sog) && pr.Sog < 102 ? pr.Sog : null,
+            heading: hdg,
+            ...describe(kinds.get(meta.MMSI)),
           });
           if (ships.size >= 300) { clearTimeout(timer); done(); }
         } catch {}
